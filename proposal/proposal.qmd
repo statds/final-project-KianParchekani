@@ -1,0 +1,37 @@
+---
+title: "Final Project Proposal"
+author: "Kian Parchekani"
+date: "March 24, 2023"
+format:
+  html:
+    code-fold: true
+  pdf: 
+    geometry: 
+      - top=30mm
+      - left=20mm
+jupyter: python3
+---
+
+## Intro
+
+For my final project, I want to dig deep into a subject that greatly interests me; the NBA. Ever since I was a child, I have had an affinity for basketball, and watching the NBA along with playing myself brought me great joy. As I got older, I became more of a stat nerd, and began paying much more attention to the mat present in sports. Now, as we've gone through this course, I have found many tools and methods that I believe could yield some interesting results regarding the NBA. Today, as books like 'Moneyball' have shown, statistics are a driving force in modern sports, and many people such as myself have taken inspiration and began doing their own research into the numbers surrounding the game. The way the game is played now has changed because of that; for example, more three pointers are being shot than ever, and teams play with a much higher pace to maximize scoring potential. Plenty of people have done their part in moving the game forward, I hope to be able to find my own research provides insight.
+
+## Research Question
+
+As of now I do not have a solid, concrete research question. All I know as of now is I want my project to center on the NBA. However, I have some ideas for potential research questions. Many people on [Towards Data Science](https://towardsdatascience.com/predicting-the-nba-mvp-with-machine-learning-c3e5b755f42e) have built their own models to predict the NBA MVP based on numerous factors, and I found that interesting. I've taken some inspiration from their research, and potentially would like to delve into that a bit further. Some other topics I thought to be interesting would be a model to give an estimated player's salary given a myriad of factors, as it could be useful in contract negotiations, managing the salary cap of a team and for the player's themselves to see their worth. The research question there would be how much is an NBA player truly worth, and what statistics are most important in that. To go along with that, one final idea I had was what factors are the best for predicting shooting ability. Shooting is massive in today's NBA, as almost every player needs to be able to stretch the floor. Building a model that could help assess prospects shooting ability could be useful.
+
+## Data
+
+My data is not finalized. The set I have included is one I have played around with before, but I may find a different one with more variables depending on my final research question. This regular season data encapsulates the 2021-2022 NBA Season, and was found on [Kaggle](https://kaggle.com). It features 812 entries (every player to play at least one minute in this season), with thirty columns. These columns encapsulate most basketball statistics; PPG, RPG, APG, 3PT%, etc. They are very useful stats for building a model of any sort. 
+
+## Research Methods
+
+As I have mentioned before, nothing is finalized, and extends to my plans for research as well. Depending on my research question, the method in which I investigate will be different. For prediciting MVP, I have seen many models that utilze SVM have found great success, so I would definetly start with that, before moving to compare the results with other models. With evaluating salary, I would most likely try SVM again, but a potential decision tree model could also produce good results (this is based purely on speculation). To go along with that, I would most likely conduct a few hypotheses tests, regardless of the research question, just to provide some additional details. For example, in evaluating 3PT% and what factors influence it, I would build a logistic regression model and compare the accuracy of the results to player's real 3PT%, but in addition, I'd like to see if there is a significant difference in position vs 3PT%, among other potential interesting findings. 
+
+## Discussion
+
+I am not honestly not sure what I expect to find. My research could produce results that align with what talking heads at ESPN spout without any data, proving them right (FT% is the biggest indicator of 3PT%, not other stats). Or, it could provide some unconventional answers to previously asked questions. In potentially evaluating player salaries, I'd like to see what stats (aside from the obvious ones, such as PPG) NBA teams value most highly. Either way my research goes, I will be happy with my results, whether it corroborates prior research or not.
+
+## Conclusion
+
+To briefly summarize, I am interested in diving into the world of the NBA to see many potential outcomes. Whether it is predicting the MVP, seeing what factors influence 3PT%, or what stats NBA teams reward best, I would like to conduct some research and see what I can find.

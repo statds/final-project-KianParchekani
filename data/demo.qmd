@@ -1,0 +1,11 @@
+
+```{python}
+import numpy as np
+import matplotlib as plt
+import pandas as pd
+
+data = pd.read_csv('nbaregszn_22.csv', encoding="Windows-1252", delimiter=";")
+
+len(data.columns)
+
+```
