@@ -1,0 +1,140 @@
+---
+title: "The 3PT Revolution: A Statistical Dive into the NBA"
+author: "Kian Parchekani"
+date: "April 11, 2023"
+format:
+  html:
+    code-fold: true
+    embed-resources: true
+  pdf: 
+    geometry: 
+      - top=30mm
+      - left=20mm
+jupyter: python3
+---
+## Intro
+
+For my final project, I want to dig deep into a subject that greatly interests me; the NBA. Ever since I was a child, I have had an affinity for basketball, and watching the NBA along with playing myself brought me great joy. As I got older, I became more of a stat nerd, and began paying much more attention to the mat present in sports. Now, as we've gone through this course, I have found many tools and methods that I believe could yield some interesting results regarding the NBA. Today, as books like 'Moneyball' have shown, statistics are a driving force in modern sports, and many people such as myself have taken inspiration and began doing their own research into the numbers surrounding the game. The way the game is played now has changed because of that; for example, more three pointers are being shot than ever, and teams play with a much higher pace to maximize scoring potential. I have gone over many works of people doing their own academic work on the subject, and some doing research for their own love of the game. Journals such as [Age of Revolutions](https://ageofrevolutions.com/2019/02/25/data-science-and-the-3-point-revolution-in-the-nba/) host their own peer reviewed journals on the ever changing landscape of the NBA, and even prestigous universities such as MIT feature works on this topic. [Understanding Features of Successful 3 Point Shots in the NBA](https://www.mit.edu/~nbailey/files/3ptreport.pdf), and academic paper by Nate Bailey, features a very in depth look at what consititues a good shot (utilizing data from the 2015-16 NBA season) from a statistical perspective. Works such as these show just how far data science has come in the world of sports, and they helped inspire me. Plenty of people have done their part in moving the game forward, I hope to be able to find my own research provides insight.
+
+## Research Question
+
+My research question is "what factors are the best for predicting shooting ability". Shooting is massive in today's NBA, as almost every player needs to be able to stretch the floor. Many have done research on the topic, but I wanted to look at existing variables tethered to each player rather than a map of all their shots. Building a model that could help assess prospects shooting ability could be useful to NBA general managers, as well as the players themselves. 
+
+## Data
+
+My data is regular season data encapsulating the 2021-2022 NBA Season, and was found on [Kaggle](https://kaggle.com). It features 812 entries (every player to play at least one minute in this season), with thirty columns. These columns encapsulate most basketball statistics; PPG, RPG, APG, 3PT%, etc. They are very useful stats for building a model of any sort. However, I realized further down the road that this dataset did not have certain variables that I deemed potentially useful, so I found a second dataset revolving around the same season that included these variables.
+
+## Cleaning the data
+
+To begin with, I wanted to clean out my dataset, join it with another that featured relevant variables, and filter my data to the entries where my research question was applicable.
+For that, I began by importing relevant packages, as well as my datasets.
+
+```{python}
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+nba = pd.read_csv('data/nbaregszn_22.csv', encoding="Windows-1252", delimiter=";")
+nba2 = pd.read_csv('data/active_players_2.csv', usecols=['Name', 'Height', 'Weight', 'Salary'])
+nba2.head(20)
+```
+
+First, I removed entries for players that played for multiple teams in the same season, keeping only their total stats rather than the seperate entries for each team. Then, I joined the two datasets, and only included the values from the second that were needed, as many columns were redundant.
+
+```{python}
+# Filter nba dataset to keep only the "TOT" rows for players with multiple rows
+nba = nba.groupby('Player').apply(lambda x: x[x['Tm'] == 'TOT'] if len(x) > 1 else x).reset_index(drop=True)
+
+# Join data frames
+nba = pd.merge(nba, nba2, left_on='Player', right_on='Name', how='left')
+
+# Drop the redundant "Name" column
+nba = nba.drop('Name', axis=1)
+
+# Print final data frame
+nba.head()
+```
+
+We need to filter this data a bit so we don't have any massive outliers, so let's only account for players who have shot at least 100 3PT shots, and players that have played in at least 20 games. 
+
+```{python}
+# Filter the dataset to only include entries with more than 20 in 'G'
+nba = nba[nba['G'] > 20]
+
+# Create a new column '3PA_total' by multiplying '3PA' with 'G'
+nba['3PA_total'] = nba['3PA'] * nba['G']
+
+# Filter the dataset to only include players with more than 100 3-point attempts
+nba = nba[nba['3PA_total'] > 100]
+```
+
+Before going any further, I wanted to visualize by data a bit. I wanted to look at the statistics I am evaluating with this project, as well as evaluating any potential patterns. 
+
+```{python}
+cols = ['Player', 'Pos', 'Tm', '3P', '3PA', '3P%']
+nba_filtered = nba[cols]
+
+top_pct = nba_filtered.nlargest(10, '3P%')
+plt.barh(top_pct['Player'], top_pct['3P%'])
+plt.title('Players with Highest 3-Point Percentage')
+plt.xlabel('3-Point Percentage')
+plt.ylabel('Player')
+plt.show()
+
+# Plot the 3-point percentages by position
+by_pos = nba_filtered.groupby('Pos').mean()
+by_pos['3P%'].plot(kind='bar')
+plt.title('3-Point Percentage by Position')
+plt.xlabel('Position')
+plt.ylabel('Average 3-Point Percentage')
+plt.show()
+```
+
+```{python}
+# Create a new column '3P_total' by multiplying '3P' with 'G'
+nba['3P_total'] = nba['3P'] * nba['G']
+
+# Create a scatterplot of '3P_total' vs '3P%'
+plt.scatter(nba['3P_total'], nba['3P%'])
+
+# Label distinct points that could be worth examining further
+high_3pt_pct = nba[nba['3P%'] >= 0.425] # select players with 3P% >= 0.425
+high_3pt_total = high_3pt_pct[high_3pt_pct['3P_total'] > 50] # select players with 3P_total > 50
+for i, row in high_3pt_total.iterrows():
+    plt.annotate(row['Player'], (row['3P_total'], row['3P%']))
+
+# Add axis labels and title
+plt.xlabel('Total 3-Pointers Made')
+plt.ylabel('3-Point Percentage')
+plt.title('Total 3-Pointers Made vs 3-Point Percentage')
+
+# Display the plot
+plt.show()
+```
+
+Next, I would like to make use of the 'Height' column in the future. In order to do that, I need to convert the values into numerical values.
+
+```{python}
+import re
+
+# Define a function to convert the values in the "Height" column into inches
+def convert_height(height_str):
+    pattern = re.compile(r"(?P<feet>\d)' (?P<inches>\d+)\"")
+    match = pattern.search(height_str)
+    if match:
+        feet = int(match.group('feet'))
+        inches = int(match.group('inches'))
+        return feet * 12 + inches 
+    else:
+        return None
+
+# Apply the function to the "Height" column and store the result in a new column called "Height_inches"
+nba['Height_inches'] = nba['Height'].astype(str).apply(convert_height)
+
+# Create a secondary column for "Height" in feet
+nba['Height_feet'] = nba['Height_inches'].apply(lambda x: x /12)
+
+# Test
+nba.head()
+
+```
