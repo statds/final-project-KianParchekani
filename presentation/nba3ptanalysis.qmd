@@ -1,0 +1,305 @@
+---
+title: "The 3PT Revolution: A Statistical Dive into the NBA"
+author: "Kian Parchekani"
+date: "April 11, 2023"
+format:
+  html:
+    code-fold: true
+    embed-resources: true
+  pdf: 
+    geometry: 
+      - top=30mm
+      - left=20mm
+jupyter: python3
+---
+## Intro
+
+For my final project, I want to dig deep into a subject that greatly interests me; the NBA. Today, as books like 'Moneyball' have shown, statistics are a driving force in modern sports, and many people such as myself have taken inspiration and began doing their own research into the numbers surrounding the game. The way the game is played now has changed because of that; for example, more three pointers are being shot than ever, and teams play with a much higher pace to maximize scoring potential. I have gone over many works of people doing their own academic work on the subject, and some doing research for their own love of the game. Journals such as [Age of Revolutions](https://ageofrevolutions.com/2019/02/25/data-science-and-the-3-point-revolution-in-the-nba/) host their own peer reviewed journals on the ever changing landscape of the NBA, and even prestigous universities such as MIT feature works on this topic. [Understanding Features of Successful 3 Point Shots in the NBA](https://www.mit.edu/~nbailey/files/3ptreport.pdf), and academic paper by Nate Bailey, features a very in depth look at what consititues a good shot (utilizing data from the 2015-16 NBA season) from a statistical perspective. Works such as these show just how far data science has come in the world of sports, and they helped inspire me. Plenty of people have done their part in moving the game forward, I hope to be able to find my own research provides insight.
+
+## Research Question
+
+My research question is "what factors are the best for predicting shooting ability". Shooting is massive in today's NBA, as almost every player needs to be able to stretch the floor. Many have done research on the topic, but I wanted to look at existing variables tethered to each player rather than a map of all their shots. Building a model that could help assess prospects shooting ability could be useful to NBA general managers, as well as the players themselves. 
+
+## Data
+
+My data is regular season data encapsulating the 2021-2022 NBA Season, and was found on [Kaggle](https://kaggle.com). It features 812 entries (every player to play at least one minute in this season), with thirty columns. These columns encapsulate most basketball statistics; PPG, RPG, APG, 3PT%, etc. They are very useful stats for building a model of any sort. However, I realized further down the road that this dataset did not have certain variables that I deemed potentially useful, so I found a second dataset revolving around the same season that included these variables.
+
+## Cleaning the data
+
+To begin with, I wanted to clean out my dataset, join it with another that featured relevant variables, and filter my data to the entries where my research question was applicable.
+For that, I began by importing relevant packages, as well as my datasets.
+
+```{python}
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+nba = pd.read_csv('/Users/kianparchekani/STAT3255/final-project-KianParchekani/data/nbaregszn_22.csv', encoding="Windows-1252", delimiter=";")
+nba2 = pd.read_csv('/Users/kianparchekani/STAT3255/final-project-KianParchekani/data/active_players_2.csv', usecols=['Name', 'Height', 'Weight', 'Salary'])
+nba2.head()
+```
+
+First, I removed entries for players that played for multiple teams in the same season, keeping only their total stats rather than the seperate entries for each team. Then, I joined the two datasets, and only included the values from the second that were needed, as many columns were redundant.
+
+```{python}
+# Filter nba dataset to keep only the "TOT" rows for players with multiple rows
+nba = nba.groupby('Player').apply(lambda x: x[x['Tm'] == 'TOT'] if len(x) > 1 else x).reset_index(drop=True)
+
+# Join data frames
+nba = pd.merge(nba, nba2, left_on='Player', right_on='Name', how='left')
+
+# Drop the redundant "Name" column
+nba = nba.drop('Name', axis=1)
+
+# Print final data frame
+nba.head()
+```
+
+Next, I would like to make use of the 'Height' column in the future. In order to do that, I need to convert the values into numerical values.
+
+```{python}
+import re
+
+# Define a function to convert the values in the "Height" column into inches
+def convert_height(height_str):
+    pattern = re.compile(r"(?P<feet>\d)' (?P<inches>\d+)\"")
+    match = pattern.search(height_str)
+    if match:
+        feet = int(match.group('feet'))
+        inches = int(match.group('inches'))
+        return feet * 12 + inches 
+    else:
+        return None
+
+# Apply the function to the "Height" column and store the result in a new column called "Height_inches"
+nba['Height_inches'] = nba['Height'].astype(str).apply(convert_height)
+
+# Create a secondary column for "Height" in feet
+nba['Height_feet'] = nba['Height_inches'].apply(lambda x: x /12)
+
+# Test
+nba.head()
+```
+
+To go along with that, I decided to convert the positions to numerical values (1-5) rather than the names of the positons.
+
+```{python}
+nba['Pos'] = nba['Pos'].apply(lambda x: x.split('-')[0])
+nba['Pos'] = nba['Pos'].replace({'PG': 1, 'SG': 2, 'SF': 3, 'PF': 4, 'C': 5})
+```
+
+
+We need to filter this data a bit so we don't have any massive outliers, so let's only account for players who have shot at least 100 3PT shots, and players that have played in at least 20 games. 
+
+```{python}
+# Filter the dataset to only include entries with more than 20 in 'G'
+nba = nba[nba['G'] > 20]
+
+# Create a new column '3PA_total' by multiplying '3PA' with 'G'
+nba['3PA_total'] = nba['3PA'] * nba['G']
+# Create a new column '3P_total' by multiplying '3P' with 'G'
+nba['3P_total'] = nba['3P'] * nba['G']
+
+# Filter the dataset to only include players with more than 100 3-point attempts
+nba = nba[nba['3PA_total'] > 100]
+```
+
+
+```{python}
+nba.head(10)
+```
+## Data Exploration
+
+Before going any further, I wanted to visualize by data a bit. I wanted to look at the statistics I am evaluating with this project, as well as evaluating any potential patterns. 
+
+```{python}
+# get top 10 players with highest 3P%
+top10 = nba.sort_values(by='3P%', ascending=False)[:10]
+
+# Plot the highest 3-point percentages
+
+plt.barh(top10['Player'], top10['3P%'])
+
+plt.title('Players with Highest 3-Point Percentage')
+plt.xlabel('3-Point Percentage')
+plt.ylabel('Player')
+plt.show()
+
+# show the plot
+plt.show()
+
+sns.set_style('whitegrid')
+
+# Create bar chart of 3P% by Pos
+sns.barplot(x='Pos', y='3P%', data=nba, palette=sns.color_palette('husl', n_colors=len(nba['Pos'].unique())))
+
+
+plt.title('3P% by Position')
+plt.xlabel('Position')
+plt.ylabel('3P%')
+plt.show()
+
+```
+
+After that, I wanted to take a look at how 3P% compares to how many 3Ps a player has made total.
+
+```{python}
+
+# Create a scatterplot of '3P_total' vs '3P%'
+plt.scatter(nba['3P_total'], nba['3P%'])
+
+# Label distinct points that could be worth examining further
+high_3pt_pct = nba[nba['3P%'] >= 0.425] # select players with 3P% >= 0.425
+high_3pt_total = high_3pt_pct[high_3pt_pct['3P_total'] > 50] # select players with 3P_total > 50
+for i, row in high_3pt_total.iterrows():
+    plt.annotate(row['Player'], (row['3P_total'], row['3P%']))
+
+# Add axis labels and title
+plt.xlabel('Total 3-Pointers Made')
+plt.ylabel('3-Point Percentage')
+plt.title('Total 3-Pointers Made vs 3-Point Percentage')
+
+# Display the plot
+plt.show()
+```
+
+From there, I wanted to take a look at what age ranges shoot the best, and to see if I could draw any conclusions from the visuals.
+
+```{python}
+# Create age ranges
+bins = [19, 25, 30, 35, 40]
+
+# Define colors for each age range
+colors = sns.color_palette("colorblind", len(bins))
+
+# Add labels for each age range
+labels = ['19-25', '26-30', '31-35', '36-40']
+
+# Create a new column for age range
+nba['AgeRange'] = pd.cut(nba['Age'], bins=bins, labels=labels, include_lowest=True)
+
+# Create the seaborn plot
+sns.set_style('darkgrid')
+sns.set_palette(colors)
+sns.catplot(x='AgeRange', y='3P%', kind='box', data=nba)
+
+# Add plot title and axis labels
+plt.title('3P% by Age Range')
+plt.xlabel('Age Range')
+plt.ylabel('3P%')
+plt.show()
+```
+
+I also wanted to take a brief look at eFG% compared to total 3PA, as I thought it could offer insight into how taking more/less 3's could effect it.
+
+```{python}
+sns.set_style('whitegrid')
+
+# Create scatterplot
+sns.scatterplot(x='3PA', y='eFG%', data=nba)
+
+# Add line of best fit
+sns.regplot(x='3PA', y='eFG%', data=nba, scatter=False)
+
+# Set axis labels and title
+plt.xlabel('3PA')
+plt.ylabel('eFG%')
+plt.title('Comparison of 3PA and eFG%')
+
+# Show plot
+plt.show()
+```
+
+Finally, I wanted to take a look at how 3P% compares to FT%
+
+```{python}
+# Create a scatterplot with '3P_total' as the x axis and '3P%' as the y axis
+plt.scatter(nba['3P%'], nba['FT%'], alpha=0.5)
+
+# Add labels and title
+plt.xlabel('3-Point Percentage')
+plt.ylabel('Free Throw Percentage')
+plt.title('Free Throw Percentage vs 3-Point Percentage')
+
+# Set the x and y limits and ticks
+plt.xlim(0, 1)
+plt.xticks([0.1*i for i in range(11)])
+plt.ylim(0, 1)
+plt.yticks([0.1*i for i in range(11)])
+
+# Add gridlines
+plt.grid(True, alpha=0.3)
+
+# Show the plot
+plt.show()
+```
+
+Despite the previous position vs 3P% graph being inconclusive, I wanted to conduct a hypothesis test just to make sure.
+
+```{python}
+from scipy.stats import chi2_contingency
+
+# create contingency table
+cont_table = pd.crosstab(nba['Pos'], nba['3P%'])
+
+# perform chi-squared test
+chi2, p, dof, expected = chi2_contingency(cont_table)
+
+# print results
+print("Chi-Squared Statistic:", chi2)
+print("Degrees of Freedom:", dof)
+print("p-value:", p)
+
+```
+
+## Final Model
+
+For my final model, I decided to go with a Gradient Boosting Regression model, as it works well with numerical data, which makes up most of the data I am working with.
+For the variables, I ended up using 3P, 3PA, FT%, Height and Salary, as they gave me the best results.
+The results are plotted against the actual 3P% for each player.
+
+
+```{python}
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
+nba = nba.dropna()
+
+# Prepare the data
+X = nba[['3P', '3PA', 'FT%', 'Height_inches', 'Salary']]
+y = nba['3P%']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train the model
+model = GradientBoostingRegressor(random_state=42)
+model.fit(X_train, y_train)
+
+# Make predictions on the test set
+y_pred = model.predict(X_test)
+
+# Calculate the mean squared error (MSE) of the predictions
+mse = mean_squared_error(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+print(f'MSE: {mse:.4f}')
+print(f'MAE: {mae:.4f}')
+# calculate R-squared value
+r2 = r2_score(y_test, y_pred)
+print("R-squared:", r2)
+
+# Add the predictions to a new column in the dataframe
+nba['Pred_3P%'] = model.predict(X)
+
+# Plot the actual 3P% vs. the predicted 3P%
+
+plt.scatter(nba['3P%'], nba['Pred_3P%'])
+plt.plot([0, 1], [0, 1], transform=plt.gca().transAxes, ls='--', c='red')  # add perfect fit line
+plt.xlabel('Actual 3P%')
+plt.ylabel('Predicted 3P%')
+plt.show()
+
+```
+
+## Conclusion
+
+In doing this project, I gained some unexpected insight. I went into this project assuming a couple things that were disproven to me; position had much less of an impact than I assumed, but height did have an impact. To go along with that, I expected FT% to have a much larger correlation, and while it did help my model, it was not as drastic as I had originally assumed.
